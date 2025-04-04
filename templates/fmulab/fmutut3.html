@@ -1,0 +1,31 @@
+<!-- templates/models/home.html -->
+{% extends '../base.html' %}
+
+{% block title %}Simulate{% endblock %}
+simulatelink
+
+{% block simulatelink %}active{% endblock %}
+
+{% block content %}
+<div class="col-md-12">
+		<a href="/models"><button type="button" class="btn active btn-primary">Models</button></a>
+		<a href="/models/growth"><button type="button" class="btn btn-primary">Growth</button></a>
+		<a href="/models/watertreatment"><button type="button" class="btn btn-primary">Watertreatment</button></a>
+		<a href="/models/behaviour"><button type="button" class="btn btn-primary">Behaviour</button></a>
+		<a href="/models/behaviour_growth"><button type="button" class="btn btn-primary">Behaviour-Growth</button></a>
+		<a href="/models/watertreatment_behaviour"><button type="button" class="btn btn-primary">Watertreatment-Behaviour</button></a>
+		<!-- a href="/models/howto"><button type="button" class="btn btn-primary">How to simulate</button></a -->
+		<hr>
+    <div>
+        <h1> FMU Tutorial 3 </h1>
+        <div>
+            <p> <h2> Experiment number </h2> </p>
+            <p>  {{ exp_num }} </p>
+            <p> <h2> Experiment description: </h2> </p>
+            <p>  {{ exp_desc }} </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+

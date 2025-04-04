@@ -1,0 +1,33 @@
+<!-- templates/models/home.html -->
+{% extends './base.html' %}
+
+{% block title %}Downloads{% endblock %}
+
+{% block resultslink %}active{% endblock %}
+
+{% block content %}
+
+	<div class="col-md-12">
+		<a href="/models"><button type="button" class="btn active btn-primary">Models</button></a>
+		<a href="/models"><button type="button" class="btn active btn-primary">Models</button></a>
+		{% for exp in exp_list %}
+		<a href="{% url 'models:detail' exp.exp_num %}"><button type="button" class="btn btn-primary">{{ exp.exp_title }}</button></a>
+		{% endfor %}
+		<hr>
+		<H2>Kopl tool</H2>
+		<p>For more information about the Kopl installation and user guide check <a href="https://open-simulation-platform.github.io/kopl">here</a> </p>
+		<p>Download the kopl tool windows installation from <a href="https://simapublicfiles.blob.core.windows.net/kopl/kopl-1.0.2-win32.x86_64.zip">here</a>. </p>
+
+
+		{% for d in download_list %}
+		<H2>{{d.download_title}}</H2>
+		<a href="{{ d.download_link }}">{{ d.download_link }}</a>
+
+		{{d.download_desc | safe }}
+
+		{% endfor %}
+
+
+	</div>
+
+{% endblock %}

@@ -1,0 +1,107 @@
+<!-- templates/models/home.html -->
+{% extends '../base.html' %}
+
+{% block title %}Models{% endblock %}
+
+{% block modelslink %}active{% endblock %}
+
+{% block content %}
+
+
+
+	<div class="col-md-12">
+		<a href="/models"><button type="button" class="btn active btn-primary">Models</button></a>
+		{% for exp in exp_list %}
+		<a href="{% url 'models:detail' exp.exp_num %}"><button type="button" class="btn btn-primary">{{ exp.exp_title }}</button></a>
+		{% endfor %}
+		<!--
+		<a href="/models/growth"><button type="button" class="btn btn-primary">Growth</button></a>
+		<a href="/models/watertreatment"><button type="button" class="btn btn-primary">Watertreatment</button></a>
+		<a href="/models/behaviour"><button type="button" class="btn btn-primary">Behaviour</button></a>
+		<a href="/models/behaviour_growth"><button type="button" class="btn btn-primary">Behaviour-Growth</button></a>
+		<a href="/models/watertreatment_behaviour"><button type="button" class="btn btn-primary">Watertreatment-Behaviour</button></a>
+		-->
+		<!-- a href="/models/howto"><button type="button" class="btn btn-primary">How to simulate</button></a -->
+		<hr>
+		<H2>{{ experiment.exp_title }}</H2>
+		<p>{{ experiment.exp_desc }}</p>
+
+        <h2>Videos</h2>
+        <ul>
+            {% for expvideo in videos %}
+            <li>
+                <strong>{{ expvideo.video.video_title }}</strong><br>
+                {{ expvideo.video.video_desc }}<br>
+                {% if 'youtu.be' in expvideo.video.video_link %}
+                <!-- Display YouTube video -->
+                <iframe width="640" height="480" src="{{ expvideo.video.video_link }}" frameborder="0" allowfullscreen></iframe>
+                {% else %}
+                {% if '.m4v' in expvideo.video.video_link or '.mp4' in expvideo.video.video_link %}
+                <!-- Display MP4 video -->
+                <video width="640" height="480" controls>
+                    <source src="{{ request.scheme }}://{{ request.get_host }}{{ settings.STATIC_URL }}{{ expvideo.video.video_link }}" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+                {% elif '.webm' in expvideo.video.video_link %}
+                <!-- Display WebM video -->
+                <video width="640" height="480" controls>
+                    <source src="{{ expvideo.video.video_link }}" type="video/webm">
+                    Your browser does not support the video tag.
+                </video>
+                {% elif '.ogg' in expvideo.video.video_link or '.ogv' in expvideo.video.video_link %}
+                <!-- Display Ogg video -->
+                <video width="640" height="480" controls>
+                    <source src="{{ expvideo.video.video_link }}" type="video/ogg">
+                    Your browser does not support the video tag.
+                </video>
+                {% else %}
+                <!-- Display other videos -->
+                <video width="640" height="480" controls>
+                    <source src="{{ expvideo.video.video_link }}">
+                    Your browser does not support the video tag.
+                </video>
+                {% endif %}
+                {% endif %}
+            </li>
+            {% empty %}
+            <li>No video available.</li>
+            {% endfor %}
+        </ul>
+
+		<H2>Downloads</H2>
+		<ul>
+        {% for expdownload in downloads %}
+             <li>
+                <a href="{{ expdownload.download.download_link }}" target="_blank">{{ expdownload.download.download_title }}</a>
+            </li>
+        {% empty %}
+            <li>No downloads available.</li>
+        {% endfor %}
+		</ul>
+
+		<H2>XML</H2>
+		<ul>
+        {% for expxml in xmls %}
+             <li>
+                <a href="{{ expxml.xml.xml_link }}" download>{{ expxml.xml.xml_title }}</a>
+            </li>
+        {% empty %}
+            <li>No xmls available.</li>
+        {% endfor %}
+		</ul>
+
+
+		<H2>Pdf</H2>
+		<ul>
+        {% for exppdf in pdfs %}
+             <li>
+                <a href="{{ exppdf.pdf.pdf_link }}" download>{{ expxml.pdf.pdf_title }}</a>
+            </li>
+        {% empty %}
+            <li>No pdfs available.</li>
+        {% endfor %}
+		</ul>
+
+	</div>
+
+{% endblock %}

@@ -1,0 +1,60 @@
+<!-- templates/models/home.html -->
+{% extends 'base.html' %}
+
+{% block title %}Models{% endblock %}
+
+{% block modelslink %}active{% endblock %}
+
+{% block content %}
+
+	<div class="col-md-12">
+		<a href="/models"><button type="button" class="btn btn-primary">Models</button></a>
+		<a href="/models/watertreatment"><button type="button" class="btn btn-primary">Watertreatment</button></a>
+		<a href="/models/growth"><button type="button" class="btn btn-primary">Growth</button></a>
+		<a href="/models/hydro"><button type="button" class="btn btn-primary">Hydrodynamic</button></a>
+		<a href="/models/howto"><button type="button" class="btn active btn-primary">How to simulate</button></a>
+		<hr>
+		<h2>How to simulate</h2>
+		<p>Click the Simulate button on the menu line, this will take you to the simulation page where you have a choice of configuring a new experiment or revisiting your old experiments. <p>
+
+		<h3>Creating a new experiment</h3>
+		<p>To configure your experiment click the "Experiment Wizard" button, this takes you to the wizard which will guide you through the configuration procedure. In order to simplify the process of configuring an experiment, we have abstracted the underlying models away. Instead we have replaced it with a five step procedure where you validate your input. The underlying system will then take care of setting the correct parameters, initializing and connecting the models.<p>
+
+		<h4>Naming your experiment</h4>
+		<p>The first step of the process is naming your experiment, give it a name and click the "Validate" button. This name is the one that will be available on the previous experiments page, if you later wish to review your previous experiments. If the name is validated you are taken to the "Biomass" page.<p>
+
+		<h4>Setting up your biomass</h4>
+		<p>The second step is setting up the biomass for your experiment. You select the species you want, the initial number of fish for the experiment and their initial mean weight. Mortality is set as a percentage for the entire experiment period, and your population will decrease linearly towards the end of the experiment to achieve this predefined variable. Next specify the number of meals per day, and the interval between the meals. It is only possible to specify the interval in whole hours.</p>
+
+		<p>Then you need to specify the type of feeding. Ad libitum assumes enough feed is given to ensure all fish are full. Fixed feeding will feed each fish with a certain percentage of the initial body weight. You can specify this percentage if you choose this option. Adapted feeding is similar to fixed feeding but the percentage is calculated off an updated weighing of the fish to ensure more feed as the fish grows. The frequency of updates to the weight needs to be specified if this option is chosen.</p>
+
+		<p>Finally you need to specify the feed composition. You can chose to use standard feed, this will use FAO standards based on the production stage. Your population of Guilthead seabream and rainbow trout is categorized as fry up to 5 grams, fingerlings from 5 to 50 grams and production from 50 grams. Atlantic salmon is categorized as fry up to 5 grams, fingerlings from 5 to 100 grams and production from 100 grams.<p>
+
+		<p>If you do not wish to use standard feed, you can specify your own. You will then need to specify the feed in Dry matter, crude protein, crude fat, and nitrogen free extract. You will also need to specify the apparent nutrient digestibility for these parameters</p>
+
+		<p>Once you are satisfied with your biomass, click the validate button and if all values validates it will take you to the "Infrastructure" page.</p>
+
+		<h4>Setting up your infrastructure</h4>
+		<p>The third step is setting up the infrastructure for your experiment. First you need to select either a presimulated tank or a presimulated netpen location, you can also choose to configure your own tank but this will result in flow data not being available. For an overview of simulated tanks and netpen locations see the hydrodynamic model description.</p>
+
+		<p>If you choose a netpen location, the watertreatment model will be decoupled from the simulation system and far less input parameters will need to be set. You can choose to enable tidal forces on the current at the location, and you will only need to specify the water quality conditions like temperature, oxygen, pH, and salinity level.<p>
+
+		<p>If you choose a presimulated or a custom tank, the watertreatment model will be coupled to the growth model, and you need to specify the parameters of the watertreatment system. A presimulated tank will set some parameters automatically and remove them from the user interface, since changing them would result in a custom tank. The parameters that needs to be set are water quality conditions like: temperature, pH, Ammonia, nitrate, solids and total inorganic carbon concentration in the renewal water. System characteristics like: recirculation water flow rate, system water exchange flow rate, total biofilter volume, filling percentage of biofileter, specific surface are of biofilter media, removal efficiency of the drum filter, and the acid-base equilibria carbonate system (K0, K1, K2). Some initial model values also needs to be set in order to initialize the systems, these are: oxyge-, ammonia/nitrogen-, solids-, and total inorganic carbon concentration in the inlet to the fish tank.</p>
+
+		<p>Once you are satisfied with your infrastructure, click the validate button and if all values validates it will take you to the "Simulation parameters" page.</p>
+
+		<h4>Setting the length of your experiment</h4>
+		<p>The fourth step is setting the length of you experiment. This value is given in days you want to simulate. Enter the value and click the validate button to go to the last page "Simulate".</p>
+
+		<h4>Simulating your experiment</h4>
+		<p>The fifth and final step of creating your experiment is simulating it. In the "Simulate" page you will see ticks for all the previous steps you have completed. It is still possible to go back and change parameters by clicking on the five buttons above. If all of the previous steps are validated, all ticks will be green and the Simulate button will be enabled. Press it to begin the simulation. This will take you back to the overall simulation page and you will see a spinning icon next to your experiment and the progress will update as the experiment is running</p>
+
+		<h3>Viewing your experiment</h3>
+		<p>Once the progress has reached 100% the result of your experiment will be available if you click the graph icon next to your experiment name. It will also be available from the "Results" page. Graphs on Growth, waste production and gaseous exchange from the growth model will always be available. Graphs on oxygen, ammonia and nitrate, solids, carbon dioxide and total inorganic carbon concentration from the watertreatment model will be available if the simulation was done in one of the presimulated or the custom tank. Flow data from the hydrodynamic model will only be available if any of the presimulated tanks or netpen locations was chosen. If you are reviewing old experiments and do not remember the exact parameters you simulated, you can click on the experiment name and you will be taken back to the wizard interface but you will not be able to change the parameters.</p>
+
+		<h3>Optimizing your experiment</h3>
+		<p>Often, you will want to change certain parameters in an experiment in order to optimize performance. If you want to change a parameter in your experiment, click the copy icon next to your experiment name. This will copy the entire setup of your experiment and launch the experiment wizard. Name your new experiment, change the parameters you want to tweak and validate all pages as before and run the experiment again. Currently there is no way to compare two experiments directly in the virtual laboratory, but you can download the data from each experiment from the results page and make comparisons in external tools like Matlab or Excel.</p>
+
+	</div>
+
+{% endblock %}

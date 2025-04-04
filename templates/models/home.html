@@ -1,0 +1,54 @@
+<!-- templates/models/home.html -->
+{% extends 'base.html' %}
+
+{% block title %}Models{% endblock %}
+
+{% block modelslink %}active{% endblock %}
+
+{% block content %}
+
+	<div class="col-md-12">
+		<a href="/models"><button type="button" class="btn active btn-primary">Models</button></a>
+		<a href="/models/watertreatment"><button type="button" class="btn btn-primary">Watertreatment</button></a>
+		<a href="/models/growth"><button type="button" class="btn btn-primary">Growth</button></a>
+		<a href="/models/hydro"><button type="button" class="btn btn-primary">Hydrodynamic</button></a>
+		<a href="/models/howto"><button type="button" class="btn btn-primary">How to simulate</button></a>
+		<hr>
+		<H2>Models</H2>
+		<p>This is the overview page for the models currently implemented in the virtual laboratory. At present there are three submodels implemented:
+		<li>A model on <a href="/models/watertreatment">watertreatment</a>.</li>
+		<li>A model on <a href="/models/growth">fish growth</a>.</li>
+		<li>A model on <a href="/models/hydro">hydrodynamic flow fields</a>.</li>
+		<p>In addition there is a Reporter FMU that takes input from all the submodels and writes the results to the database so the results are available later.</p>
+		
+		<H2>Configurations</H2>
+		<p>The Virtual Laboratory has three main ways of configuring the four available FMUs depending on the user's choice of infrastructure for the experiment. </p>
+
+		<p>In the first configuration the user has chosen a presimulated tank for the experiment. The growth FMU delivers data to the watertreatment model and the reporter, and the watertreatment and flow FMUs delivers data directly to the reporter. This setup will lock certain input parameters in the watertreatment model, since changing them would result in a different flow than the presimulated one. These parameters will be removed from the user interface, so they are not changed in the experiment setup.</p>
+
+		<img src="/static/img/ConfigurationA.jpg" alt="Configuration A">
+
+		<p>In the second configuration the user has chosen a custom tank. Since the flow model is depending on presimulating tanks due to processing capabilities, this disconnects the flow FMU from the setup, but otherwise it remains the same as in configuration A.</p>
+
+		<img src="/static/img/ConfigurationB.jpg" alt="Configuration B">
+
+		<p>In the third configuration the user has chosen a netcage as the infrastructure. Since the watertreatment is only necessary for tank simulations, it is disconnected from the simulation, and the growth and flow FMUs run in parallel, delivering data to the reporter FMU.</p>
+
+		<img src="/static/img/ConfigurationC.jpg" alt="Configuration C">
+
+
+		<!--
+		<p>The image below shows the interconnections between the different submodels. Input parameters are shown above the dotted line in blue, if the parameters are imported from a different FMU they are shown in yellow. If the selection in another FMU precludes changing a parameter it is shown in red. Output variables are shown below the dotted line in blue, if they are used by another FMU they are shown in green. If there is a direct connection from an FMU to another it is shown with a line, if there is an indirect connection it is shown as a dotted line.</p>
+		
+		<p>The most important connection is between the DebGrowth and WaterTreatment FMU. DebGrowth calculates the number of fish, their medium wet weight, feed intake, total oxygen consumption, total CO2 production, total nitrate production and total production of dry matter for each timestep. These variables are sent to the WaterTreatment FMU as continous inputs for each timestep. </p>
+		
+		<p>Environmental variables such as temperature, oxygen, salinity and pH is assumed to be regulated to remain constant during the experiment. So if for example an experiment is set up where the oxygen level would drop beyond the treshold of fish survivability the experiment will still run to its conclusion assuming enough oxygen for the fish to survive, but the user will be able to see when oxygen input to the tank needs to be increased in order to stay within acceptable limits.</p>
+		
+		<p>The flow field FMU currently has a more indirect impact on the other FMUs. If a pregenerated flow field is selected for the experiment, the parameters relating to tank size and flow rate are preselected in the WaterTreatment FMU. The connected resirculation equipment can still be configured for a different setup. If an open cage is selected, the WaterTreatment FMU is disconnected from the simulation.</p>
+		
+		<p>All of the FMUs deliver their output variables to the Reporter FMU which handles the storage of results for later presentation.</p>
+		
+		<img src="/static/img/FMUs_v1.jpg" alt="FMU Connections">-->
+	</div>
+
+{% endblock %}

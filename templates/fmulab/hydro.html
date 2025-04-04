@@ -1,0 +1,84 @@
+<!-- templates/models/home.html -->
+{% extends 'base.html' %}
+
+{% block title %}Models{% endblock %}
+
+{% block modelslink %}active{% endblock %}
+
+{% block content %}
+
+	<div class="col-md-12">
+		<a href="/models"><button type="button" class="btn btn-primary">Models</button></a>
+		<a href="/models/watertreatment"><button type="button" class="btn btn-primary">Watertreatment</button></a>
+		<a href="/models/growth"><button type="button" class="btn btn-primary">Growth</button></a>
+		<a href="/models/hydro"><button type="button" class="btn btn-primary active">Hydrodynamic</button></a>
+		<a href="/models/howto"><button type="button" class="btn btn-primary">How to simulate</button></a>
+		<hr>
+		<H2>Hydrodynamics</H2>
+		<p>The objective of the flow field model is to represent the water currents within the production unit (fish cage or tank), presenting key information related to the current to the other model components. The model interacts with the other model components either through providing the current speed and direction vector for given locations, or through providing descriptive numbers for the overall flow field in the production unit.</p>
+
+		<p>For tanks, the model uses precomputed flow fields for production units. In the AQUAEXCEL<sup>2020</sup> project, the <a href="https://www.ansys.com/products/fluids/ansys-fluent">Ansys Fluent</a> model has been used to estimate flow fields in a set of production units, and the model output has been converted to NetCDF data on a rectangular grid for use by the VL. For open sea cages, the current conditions are dependent on ambient conditions, and the VL presents a choice of representative current profiles for different types of aquaculture locations. Tidal variations in current speed can optionally be included for sea cages.</p>
+
+		<p>The flow field model component is written in C++ and includes a similar FMU-interface as the FMUs for fish growth and water quality. Internal mechanisms for reading outputs from CFD-simulations were programmed directly in the C++ implementation. By reviewing the outputs from the FMU against the outputs from CFD it was possible to ensure that the data were properly read.</p>
+
+		<p>For more information about the flow field model, how it was created and validated see the official reports at the AQUAEXCEL<sup>2020</sup> <a href="https://aquaexcel2020.eu/results">results page</a>. </p>
+		<li><a href="https://aquaexcel2020.eu/sites/default/files/inline-files/AQUAEXCEL2020Deliverable5_4.pdf">D5.4</a> presents the initial modelling efforts.</li> 
+		<li>D5.8 (Forthcoming pending approval by the EC desk officer) presents the final model currently implemented in the VL.</li> 
+
+		<H2>Presimulated tanks</H2>
+		<p>The following tanks have been simulated with the given parameters to a steady state and can be selected in the experiment wizard. It is also possible to configure a custom tank, but since the flow field model requires a lot of computational time to achieve a steady state this will result in flow data being unavailable.</p>
+		<table class="table table-bordered">
+			<thead>
+				<tr>
+				  <th scope="col">Tank</th>
+				  <th scope="col">Type</th>
+				  <th scope="col">Width (m)</th>
+				  <th scope="col">Height (m)</th>
+				  <th scope="col">Volume (l)</th>
+				  <th scope="col">Flow rate (l/h)</th>
+				  <th scope="col">Fluent simulation</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+				  <td>VURH</td>
+				  <td>Circular flat bottom tank</td>
+				  <td>1.465</td>
+				  <td>0.84</td>
+				  <td>1400</td>
+				  <td>1800</td>
+				  <td><img src="/static/img/VURH.png" alt="VURH fluent simulation" width="400"></td>
+				</tr>
+				<tr>
+				  <td>HCMR</td>
+				  <td>Cylindroconical tank</td>
+				  <td>1.01</td>
+				  <td>0.93</td>
+				  <td>545</td>
+				  <td>250</td>
+				  <td><img src="/static/img/HCMR.png" alt="HCMR fluent simulation" width="400"></td>
+				</tr>
+				<tr>
+				  <td>Nofima</td>
+				  <td>Octagonal exp. tank</td>
+				  <td>1.8/1.75</td>
+				  <td>1.0</td>
+				  <td>3000</td>
+				  <td>3600</td>
+				  <td><img src="/static/img/Nofima.png" alt="Nofima fluent simulation" width="400"></td>
+				</tr>
+			</tbody>
+		</table>
+
+		<H2>Presimulated netcage locations</H2>
+		<p>To obtain representative current speed values for Atlantic salmon cage culture in Norway, we have used numerical ocean model results calculated using the SINMOD model (Slagstad & McClimans 2005). The regions of Middle Norway were simulated at 160 m horizontal resolution for a full year, and current statistics were found for actual aquaculture locations in the area.</p>
+
+		<p>We made a selection of open locations and fjord locations, where open refers to relatively exposed locations along the coast, and fjord refers to locations inside fjords. For each of the locations, we recorded the highest and lowest monthly average current speed at every 5th m through the water column from 0-35 m. This resulted in a "high" and a "low" current profile for each location, representing high and low average values, but not extreme conditions; one can expect all of these locations to have significantly higher maximum current speeds. For each category of locations (open and fjord), we computed the mean of the high and low profiles to obtain reasonable high and low current profiles for each.</p>
+
+		<p>The figure below summarizes the high and low speeds estimated at the selected locations, as well as the mean values over the locations in each case. Both types of locations tend to have decreasing current speeds from the surface downwards, but fjord locations show a sharper transition from a shallow surface layer. This is due to stronger stratification in fjord locations compared to open locations. In the experiment wizard all four of these locations can be selected for experimentation. When these options are selected it is also possible to enable tidal variations for the different sites.</p>
+
+		<img src="/static/img/netcages.png" alt="Netcage flow fields">
+
+	</div>
+
+{% endblock %}

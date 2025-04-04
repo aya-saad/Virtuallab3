@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>{% block headertitle %}{% endblock %}</title>
+    <meta name="author" content="fibj" >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% block headerscripts %}{% endblock %}
+    <!-- Bootstrap core CSS -->
+    <link href="/static/bootstrap-4.1.3/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom styles for this template -->
+    <link href="/static/css/virtuallabcustom.css" rel="stylesheet">
+  </head>
+
+  <body>
+    <!-- Context dependent navbar -->
+    <nav class="navbar fixed-top navbar-expand-md">
+        <div class="container d-flex justify-content-between">
+      <a class="navbar-brand" href="/">AQUAEXCEL<sup>2020</sup> Virtual Laboratory</a>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarsExampleDefault">
+        <ul class="navbar-nav mr-auto">
+          <li class="nav-item {% block homelink %}{% endblock %}"><a class="nav-link" href="/">Home</a></li>
+          <li class="nav-item {% block modelslink %}{% endblock %}"><a class="nav-link" href="/models">Models</a></li>
+          <li class="nav-item {% block simulatelink %}{% endblock %}"><a class="nav-link" href="/fmulab">Simulate</a></li>
+          <li class="nav-item {% block resultslink %}{% endblock %}"><a class="nav-link" href="/downloads">Downloads</a></li>
+        </ul>
+      </div>
+    </div>
+    </nav>
+
+    <div class="container">
+      <div class="basic-template">
+             {% block content %}{% endblock %}    
+      </div>
+    </div><!-- /.container -->
+
+    <!-- Bootstrap core JavaScript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="/static/js/jquery-3.3.1.min.js"></script>
+    <script src="/static/js/popper.min.js"></script>
+    <script src="/static/bootstrap-4.1.3/js/bootstrap.min.js"></script>
+    {% block jsloader %}{% endblock %}
+  </body>
+</html>

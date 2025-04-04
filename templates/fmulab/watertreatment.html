@@ -1,0 +1,282 @@
+<!-- templates/models/home.html -->
+{% extends 'base.html' %}
+
+{% block title %}Models{% endblock %}
+
+{% block modelslink %}active{% endblock %}
+
+{% block content %}
+
+	<div class="col-md-12">
+		<a href="/models"><button type="button" class="btn btn-primary">Models</button></a>
+		<a href="/models/watertreatment"><button type="button" class="btn btn-primary active">Watertreatment</button></a>
+		<a href="/models/growth"><button type="button" class="btn btn-primary">Growth</button></a>
+		<a href="/models/hydro"><button type="button" class="btn btn-primary">Hydrodynamic</button></a>
+		<a href="/models/howto"><button type="button" class="btn btn-primary">How to simulate</button></a>
+		<hr>
+		<H2>Water treatment</H2>
+		<p>The water treatment model predicts the water quality and water treatment effects in research infrastructures such as tanks. The model was designed as a generic tool that users of research facilities could use prior to the start of an experiment to predict the expected water quality during the experiment. In addition, the model could be a tool for (re-)designing systems so that they result in the desired water quality for the experiment envisioned. This makes the model a potential tool for teaching TNA users, research infrastructure technicians and others involved the principles of water quality control in fish culture units. The model uses input on waste production as a starting point.</p>
+
+		<p>The sub-model computes water quality based on input parameters that describe the production plan and the experimental design. In the virtual laboratory these inputs come from the growth model. The model outputs describe water quality using the most crucial parameters related to ammonia and nitrate in the system (tanks and filters). For each communication time step, the model calculates values such as ammonia production by the fish, nitrification rate, nitrification capacity, ammonia load to the biofilter, ammonia removal rate, ammonia concentration in the water, nitrate production, nitrate in the tanks.</p>
+
+		<p>The water treatment model was first implemented in Excel, and all tests and tuning of the model was done using this implementation. To convert this model into an FMU, a C++-FMU-interface containing all necessary FMI functions was created. This interface communicated with the Excel implementation by linking in functionality provided by the LibreOffice API and containing a LibreOffice runtime environment. In conclusion, this resulted in an FMU that used the original implementation in Excel to simulate water quality and treatment, meaning that the FMU operated identically to the validated first implementation. In the final version implemented in the Virtual Laboratory the excel file has been rewritten in C++ in order to optimize performance.</p>
+
+		<p>The water treatment model illustrated below, assumes a constant production by fish during the day and a constant and instant ammonia removal by water exchange and bio-filtration; there is no temporarily accumulation of ammonia in the water. Peaks in ammonia production could be introduced in the model as a function of feed load by hourly instead of daily iterations and introducing hourly feed loads.</p>
+
+		<img src="/static/img/wqmodel.png" alt="Water quality model">
+
+		<p>As long as removal capacity exceeds production, the resulting ammonia concentration in the water remains zero.</p> 
+
+		<p>Nitrate production is assumed to equal ammonia removal by biofiltration. Denitrification is absent and accumulation of some nitrite is ignored. Ammonia (or nitrate) addition to the water to create ammonia treatments at different levels for the purpose of water quality experiments, is another source of ammonia in the system that is currently not considered in the model. Ammonia in the model equals NH<sub>4+</sub> + NH<sub>3</sub>.</p>
+
+		<p>For more information about the water treatment model, how it was created and validated see the official reports at the AQUAEXCEL<sup>2020</sup> <a href="https://aquaexcel2020.eu/results">results page</a>. </p>
+		<li><a href="https://aquaexcel2020.eu/sites/default/files/inline-files/Deliverable%20D5.3%20First%20prototype%20model%20on%20water%20quality%20and%20water%20temperature%20for%20experimental%20facilities.pdf">D5.3</a> presents the initial modelling efforts.</li> 
+		<li>D5.7 (Forthcoming pending approval by the EC desk officer) presents the final model currently implemented in the VL.</li> 
+
+		<H2>Input parameters</H2>
+		The water treatment model can be run in two modes. Standalone, which uses a simplified fish growth model, and integrated, which takes input from the DebGrowth model. In the virtual laboratory it is run in the integrated mode and as such we will only describe inputs required for this mode here.
+		<table class="table table-bordered">
+			<thead>
+				<tr>
+				  <th scope="col">Description</th>
+				  <th scope="col">Parameter</th>
+				  <th scope="col">Units</th>
+				  <th scope="col">Comment</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+				  <td rowspan="3">Fish production</td>
+				  <td>Number of fish</td>
+				  <td>#</td>
+				  <td>Parameter received from DebGrowth model.</td>
+				</tr>
+				<tr>
+				  <td>Individual weight</td>
+				  <td>g</td>
+				  <td>Parameter received from DebGrowth model.</td>
+				</tr>
+				<tr>
+				  <td>Individual feed</td>
+				  <td>g</td>
+				  <td>Parameter received from DebGrowth model.</td>
+				</tr>
+				<tr>
+				  <td rowspan="4">Waste production</td>
+				  <td>Solids (TSS) production fish</td>
+				  <td>g/h</td>
+				  <td>Parameter received from DebGrowth model.</td>
+				</tr>
+				<tr>
+				  <td>Oxygen consumption</td>
+				  <td>g/h</td>
+				  <td>Parameter received from DebGrowth model.</td>
+				</tr>
+				<tr>
+				  <td>Carbon dioxide production</td>
+				  <td>g/h</td>
+				  <td>Parameter received from DebGrowth model.</td>
+				</tr>
+				<tr>
+				  <td>Total Ammonia Nitrogen (TAN) production</td>
+				  <td>g/h</td>
+				  <td>Parameter received from DebGrowth model.</td>
+				</tr>
+				<tr>
+				  <td rowspan="6">Water quality conditions</td>
+				  <td>Water temperature</td>
+				  <td>&#176;C</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Water pH</td>
+				  <td>-</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Ammonia concentration system renewal water</td>
+				  <td>mg/L</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Nitrate concentration system renewal water</td>
+				  <td>mg/L</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Solids concentration system renewal water</td>
+				  <td>mg/L</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Total Inorganic Carbon concentration (TIC)</td>
+				  <td></td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td rowspan="10">System characeristics</td>
+				  <td>Total water volume fish tanks</td>
+				  <td>L</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Total water volume in the remaining part of the system</td>
+				  <td>L</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Recirculation water flow rate</td>
+				  <td>L/d</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>System water exchange flow rate</td>
+				  <td>L/d</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Total biofilter volume</td>
+				  <td>m<sup>3</sup></td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Filling percentage</td>
+				  <td>%</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Specific Surface Area (SSA) biofilter media</td>
+				  <td>m<sup>2</sup>/m<sup>3</sup></td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Removal efficiency drum filter</td>
+				  <td>%</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Gas:Liquid ratio biofilter (GLR)</td>
+				  <td>-</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Acid-base equilibria carbonate system (K0, K1, K2)</td>
+				  <td></td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td rowspan="4">Initial model values</td>
+				  <td>Oxygen concentration fish tank in</td>
+				  <td>mg/L</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Total ammonia nitrogen concentration fish tank in </td>
+				  <td>mg/L</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Solids concentration fish tank in</td>
+				  <td>mg/L</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Total inorganic carbon concentration fish tank in </td>
+				  <td>mg CO<sub>2</sub>/L</td>
+				  <td></td>
+				</tr>
+			</tbody>
+		</table>
+
+		<H2>Output parameters</H2>
+		The water treatment model calculates the water quality for the fish tank inlets and outlets as well as the inlets and outlets for the biofilter in the system.
+		<table class="table table-bordered">
+			<thead>
+				<tr>
+				  <th scope="col">Description</th>
+				  <th scope="col">Parameter</th>
+				  <th scope="col">Units</th>
+				  <th scope="col">Comment</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+				  <td>Oxygen</td>
+				  <td>Oxygen fish tank</td>
+				  <td>mg/L</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td rowspan="5">Ammonia and Nitrate</td>
+				  <td>Ammonia fish tank in</td>
+				  <td>mg/L</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Ammonia fish tank out</td>
+				  <td>mg/L</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Ammonia biofilter in</td>
+				  <td>mg/L</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Ammonia biofilter out</td>
+				  <td>mg/L</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Nitrate concentration system</td>
+				  <td>mg/L</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td rowspan="2">Solids</td>
+				  <td>Solids concentration fish tank in</td>
+				  <td>mg/L</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Solids concentration fish tank out</td>
+				  <td>mg/L</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td rowspan="2">Carbon dioxide</td>
+				  <td>Carbon dioxide concentration fish tank in</td>
+				  <td>mg/L</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Carbon dioxide concentration fish tank out</td>
+				  <td>mg/L</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td rowspan="4">Total inorganic carbon concentration (TIC)</td>
+				  <td>TIC fish tank in</td>
+				  <td>mg/L</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>TIC fish tank out</td>
+				  <td>mg/L</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>TIC biofilter in</td>
+				  <td>mg/L</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>TIC biofilter out</td>
+				  <td>mg/L</td>
+				  <td></td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+
+{% endblock %}

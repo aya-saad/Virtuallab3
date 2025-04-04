@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+{% load static %}
+
+<link rel="stylesheet" href="{% static 'fmulab/style.css' %}">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Virtual lab - FMU tutorials</title>
+</head>
+
+<body>
+
+<div>
+    <p> <h2> Experiment number </h2> </p>
+    <p>  {{ exp_num }} </p>
+    <p> <h2> Experiment description: </h2> </p>
+    <p>  {{ exp_desc }} </p>
+</div>
+</body>
+</html>
+
+

@@ -1,0 +1,10 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Polls site admin') }}{% endblock %}
+# {{ site_header|default:_('FMU tutorial site administration') }}
+{% block branding %}
+<h1 id="site-name"><a href="{% url 'admin:index' %}">FMU Tutorials Administration</a></h1>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
+

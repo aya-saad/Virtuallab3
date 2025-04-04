@@ -1,0 +1,34 @@
+<!-- templates/models/home.html -->
+
+{% extends './base.html' %}
+{% load static %}
+{% block title %}Home{% endblock %}
+
+{% block homelink %}active{% endblock %}
+
+{% block content %}
+	<div class = "row">
+    <div class="col-md-8">
+      <H2 class='text-center'>Welcome to the AQUAEXCEL<sup>2020</sup> Virtual Laboratory!</H2>
+      <p>This website is the result of <a href="https://aquaexcel2020.eu/">AQUAEXCEL<sup>2020</sup></a> WP5 – "Virtual laboratories and modelling tools for designing experiments in aquaculture research facilities".</p>
+
+      <p>Experiments with fish usually involve extensive use of laboratory facilities, and often need to run for long periods of time to obtain the desired answers. In such experiments, it is essential to ensure that the fish experience acceptable welfare conditions. Together with the potentially high costs of such experiments, the welfare perspective underlines the need for good experimental planning when doing research on fish. Both from an ethical (3R's) and a cost perspective, numerical models may be useful tools for experimental design, preparation and planning before realizing the actual experiments.</p>
+
+      <p>One of the main research activities in AQUAEXCEL<sup>2020</sup> WP5 was to develop a virtual laboratory system that enables virtual experiments in aquaculture research facilities. This system features a framework that allows the integration of mathematical models of different subsystems in common simulations, replicating the system operation of research laboratories.</p>
+      <div class="text-center">
+      <img src="{% static 'img/Models.png' %}" height="300" title="Model overview">
+      </div>
+      <p>Using the <a href="https://fmi-standard.org/">fmi standard</a>, models for growth, nutrition and waste production, hydrodynamic flow fields in tanks and cages, and water quality and water treatment have been wrapped in fmus. A simulation framework has been developed to integrate these fmus and perform simulations across them. This framework is accessible through this site, where you can set up experiments and simulate them without concerns for how the underlying models interact.
+
+      <p>Read more about the different <a href="/models">models</a>, or continue on to the <a href="/simulate">simulate</a> page to configure your next experiment!</p>
+    </div>
+    <div class="col-md-4">
+      <H2 class='text-center'>News:</H2>
+      <p><b>29.01.2018 - Minor updates</b></p>
+      <p>Minor updates for the upcoming distance learning course. Including added functionality to the user profile and validation rules for the growth model.</p>
+      <p><b>07.12.2018 - We are live!</b></p>
+      <p>We have finally launched the website and are ready for Beta testing. Watch this column for updates on new features.</p>
+    </div>
+	</div>
+
+{% endblock %}

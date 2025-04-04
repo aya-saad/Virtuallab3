@@ -1,0 +1,275 @@
+<!-- templates/models/home.html -->
+{% extends 'base.html' %}
+
+{% block title %}Models{% endblock %}
+
+{% block modelslink %}active{% endblock %}
+
+{% block content %}
+
+	<div class="col-md-12">
+		<a href="/models"><button type="button" class="btn btn-primary">Models</button></a>
+		<a href="/models/watertreatment"><button type="button" class="btn btn-primary">Watertreatment</button></a>
+		<a href="/models/growth"><button type="button" class="btn btn-primary active">Growth</button></a>
+		<a href="/models/hydro"><button type="button" class="btn btn-primary">Hydrodynamic</button></a>
+		<a href="/models/howto"><button type="button" class="btn btn-primary">How to simulate</button></a>
+		<hr>
+		<H2>AquaFishDEB Model</H2>
+		<p>The AquaFishDEB model is designed to predict growth, feed consumption and waste production for fish. The model is based on the Dynamic Energy Budget (<a href="https://en.wikipedia.org/wiki/Dynamic_energy_budget_theory">DEB</a>) theory for metabolic organization, which provides a conceptual and quantitative framework to study the whole life cycle of individual animals while making explicit use of energy and mass balances. The model is explicitly tied with feed and temperature and accommodates different feeding strategies (e.g. ad libitum or restricted, feeding frequency, adaptive feeding) and feed compositions.</p>
+
+		<p>The predictions made by the AquaFishDEB model are the end products of a two-step modeling procedure. The first step involves the parameterization of the DEB model for the fish species using <a href="https://add-my-pet.github.io/DEBtool_M/docs/index.html">DEBtool</a> routines; a freely available documented software package. In the second step, the DEB parameters are used in the AquaFishDEB model that then simulates the dynamics for a group of fish exposed to user input regarding fish and feed characteristics, and the specified experimental conditions. Specifically, the model predicts fish growth, oxygen consumption and waste production (nitrogen, CO2, solids) for individual fish or groups at different feed rations, diet compositions, and water temperatures.</p>
+
+		<img src="/static/img/debmodel.jpg" alt="Aquafish DEB model" width="100%">
+
+		<p>The AquaFishDEB model has been developed for Atlantic salmon, gilthead seabream and rainbow trout. The DEB parameters for the rainbow trout model were retrieved from the <a href="https://bio.vu.nl/thb/deb/deblab/add_my_pet/">AmP</a> collection (<a href="https://bio.vu.nl/thb/deb/deblab/add_my_pet/entries_web/Oncorhynchus_mykiss/Oncorhynchus_mykiss_res.html">AmP Oncorhynchus mykiss version 2017/10/30</a>), parameters for gilthead seabream were estimated from data sets provided by HCMR while those for Atlantic salmon were obtained using a combination of data provided by NOFIMA and data from the literature.</p>
+
+		<p>The AquaFishDEB model was first implemented as a stand-alone model in Matlab, and all model tuning, verification and validation was done using this version of the model. After this, the Matlab code was converted into C++ using Matlab Coder, thus enabling simulations of the model in C++. This code was then linked into an FMU-interface implemented in C++, that was compiled, resulting in an FMU containing the AquaFishDEB-model. The functionality of this version of the FMU was finally verified by comparing model outputs from the FMU with those obtained with the original Matlab implementation.</p>
+
+		<p>For more information about the AquaFishDEB model, how it was created and validated see the official reports at the AQUAEXCEL<sup>2020</sup> <a href="https://aquaexcel2020.eu/results">results page</a>. </p>
+		<li><a href="https://aquaexcel2020.eu/sites/default/files/inline-files/AQUAEXCEL2020Deliverable5_2.pdf">D5.2</a> presents the initial modelling efforts.</li> 
+		<li>D5.6 (Forthcoming pending approval by the EC desk officer) presents the final model currently implemented in the VL.</li> 
+
+		<H2>Input parameters</H2>
+		<p>The inputs of the model include the name of the farmed species (Species name) and the physicochemical parameters of the tank water (Water parameters). Except temperature, the other parameters act as red flags when values are outside pre-specified range (depending on the species). Temperature affects the physiology.</p>
+
+		<p>Fish size is given as the average initial wet weight (g) at the start of the experiment for a desired initial number of fish (Fish group size). Mortality refers to the percentage of the initial fish group size that was lost by the end of the experimental period (d). Feeding level can be ad libitum, referring to the maximum feed intake, or restricted, given as the amount of feed (g d<sup>-1</sup>) equal to the input percentage of body weight. Restricted feeding allows for the adaptation of the % BW d<sup>-1</sup> through intermediate weighing at an interval (d) defined by the user. Feed composition is given in g of CP, CF, CA, and NFE per kg of feed Dry Weight, and DM as g kg<sup>-1</sup> of feed Fresh Weight, while the apparent digestibility is given as % of the DM/nutrient/GE retained by the fish after faecal loss has been accounted for. Alternatively, default feeds, which are the recommended FAO standard feeds based on the production stage, can be used.</p>
+
+		<table class="table table-bordered">
+			<thead>
+				<tr>
+				  <th scope="col">Description</th>
+				  <th scope="col">Parameter</th>
+				  <th scope="col">Units</th>
+				  <th scope="col">Comment</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+				  <td rowspan="3">Species name</td>
+				  <td>Atlantic salmon</td>
+				  <td style="width:150px">-</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Guilthead seabream</td>
+				  <td>-</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Rainbow trout</td>
+				  <td>-</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td rowspan="4">Water parameters</td>
+				  <td>Water temperature</td>
+				  <td>&#176;C</td>
+				  <td>Assumed to be kept constant for the experiment duration. Affects physiology.</td>
+				</tr>
+				<tr>
+				  <td>Salinity</td>
+				  <td>psu</td>
+				  <td rowspan="3">Assumed to be kept constant for the experiment duration. Red flag parameter, the simulation will not run if this is outside pre-specified range for the given species.</td>
+				</tr>
+				<tr>
+				  <td>Dissolved Oxygen</td>
+				  <td>mg l<sup>-1</sup></td>
+				</tr>
+				<tr>
+				  <td>pH</td>
+				  <td>-</td>
+				</tr>
+				<tr>
+				  <td>Fish size</td>
+				  <td>Initial wet weight</td>
+				  <td>g</td>
+				  <td>Average initial wet weight at the start of the experiment.</td>
+				</tr>
+				<tr>
+				  <td rowspan="2">Fish group size</td>
+				  <td>Initial number of fish</td>
+				  <td>#</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Mortality</td>
+				  <td>%</td>
+				  <td>The percentage of the initial fish group size that was lost by the end of the experimental period.</td>
+				</tr>
+				<tr>
+				  <td>Experimental period</td>
+				  <td>Time</td>
+				  <td>d</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td rowspan="4">Feeding level</td>
+				  <td>Ad libitum</td>
+				  <td>-</td>
+				  <td>Maximum feed intake.</td>
+				</tr>
+				<tr>
+				  <td>Restricted</td>
+				  <td>% BW d<sup>-1</sup></td>
+				  <td>Percentage of initial body weight fed per day.</td>
+				</tr>
+				<tr>
+				  <td rowspan="2">Restricted (adapt feeding)</td>
+				  <td>% BW d<sup>-1</sup></td>
+				  <td>Percentage of body weight fed per day</td>
+				</tr>
+				<tr>
+				  <td>d</td>
+				  <td>Adaptation frequency for intermediate weighing to update the body weight.</td>
+				</tr>
+				<tr>
+				  <td rowspan="2">Feeding frequency</td>
+				  <td>Number of meals</td>
+				  <td># d<sup>-1</sup></td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Time interval between meals</td>
+				  <td>h</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td rowspan="2">Feed</td>
+				  <td>Standard</td>
+				  <td>-</td>
+				  <td>Default feeds, which are the recommended FAO standard feeds based on the production stage.</td>
+				</tr>
+				<tr>
+				  <td>Custom</td>
+				  <td>-</td>
+				  <td>Customize your own feed composition and nutrient digestibility.</td>
+				</tr>
+				<tr>
+				  <td rowspan="5">Feed composition</td>
+				  <td>Dry matter (DM)</td>
+				  <td>g (kg feed DM)<sup>-1</sup></td>
+				  <td rowspan ="5">Only possible to specify if custom feed is selected. Feed composition is given in g of CP, CF, CA, and NFE per kg of feed Dry Weight, and DM as g kg<sup>-1</sup> of feed Fresh Weight</td>
+				</tr>
+				<tr>
+				  <td>Crude protein (CP)</td>
+				  <td>g (kg feed DM)<sup>-1</sup></td>
+				</tr>
+				<tr>
+				  <td>Crude fat (CF)</td>
+				  <td>g (kg feed DM)<sup>-1</sup></td>
+				</tr>
+				<tr>
+				  <td>Crude ash (CA)</td>
+				  <td>g (kg feed DM)<sup>-1</sup></td>
+				</tr>
+				<tr>
+				  <td>Nitrogen free extract (NFE)</td>
+				  <td>g (kg feed DM)<sup>-1</sup></td>
+				</tr>
+				<tr>
+				  <td rowspan="5">Apparent nutrient digestibility</td>
+				  <td>Dry matter (DM)</td>
+				  <td>%</td>
+				  <td rowspan ="5">Only possible to specify if custom feed is selected. Apparent digestibility is given as % of the DM/nutrient/GE retained by the fish after faecal loss has been accounted for.</td>
+				</tr>
+				<tr>
+				  <td>Crude protein (CP)</td>
+				  <td>%</td>
+				</tr>
+				<tr>
+				  <td>Crude fat (CF)</td>
+				  <td>%</td>
+				</tr>
+				<tr>
+				  <td>Crude ash (CA)</td>
+				  <td>%</td>
+				</tr>
+				<tr>
+				  <td>Nitrogen free extract (NFE)</td>
+				  <td>%</td>
+				</tr>
+			</tbody>
+		</table>
+
+		<H2>Output parameters</H2>
+		The number of fish (#) and the total fish biomass (g) are predicted as functions of time, taking into account the input mortality rate. The FCR, total feed intake (g h<sup>-1</sup>) as well as waste production and gaseous exchange are also given as functions of time. Faecal dry matter are given in g per h<sup>-1</sup> and the total waste production as feacal and non faecal loss-N in g N h<sup>-1</sup>. O2 consumption and CO2 production are predicted for the total fish biomass (g h<sup>-1</sup>) as well as per kg of fish hourly (mg kg<sup>-1</sup> h<sup>-1</sup>).
+
+		<table class="table table-bordered">
+			<thead>
+				<tr>
+				  <th scope="col">Description</th>
+				  <th scope="col">Parameter</th>
+				  <th scope="col">Units</th>
+				  <th scope="col">Comment</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+				  <td rowspan="5">Growth</td>
+				  <td>Number of fish</td>
+				  <td style="width:150px">#</td>
+				  <td>Parameter passed to Water treatment model.</td>
+				</tr>
+				<tr>
+				  <td>Body size</td>
+				  <td>g fish<sup>-1</sup></td>
+				  <td>Parameter passed to Water treatment model.</td>
+				</tr>
+				<tr>
+				  <td>Biomass</td>
+				  <td>g</td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Feed intake</td>
+				  <td>g h<sup>-1</sup></td>
+				  <td>Parameter passed to Water treatment model.</td>
+				</tr>
+				<tr>
+				  <td>Feed conversion ratio</td>
+				  <td>-</td>
+				  <td>Not calculated for the first two days of the experiment, then calculated from the average of the last day.</td>
+				</tr>
+				<tr>
+				  <td rowspan="3">Waste production</td>
+				  <td>Faecal dry matter</td>
+				  <td>g h<sup>-1</sup></td>
+				  <td>Parameter passed to Water treatment model.</td>
+				</tr>
+				<tr>
+				  <td>Faecal loss-N</td>
+				  <td>g N h<sup>-1</sup></td>
+				  <td></td>
+				</tr>
+				<tr>
+				  <td>Non faecal loss-N (TAN)</td>
+				  <td>g N h<sup>-1</sup></td>
+				  <td>Parameter passed to Water treatment model.</td>
+				</tr>
+				<tr>
+				  <td rowspan="4">Gaseous exchange</td>
+				  <td>Oxygen consumption</td>
+				  <td>g h<sup>-1</sup></td>
+				  <td>Parameter passed to Water treatment model. Oxygen consumption for entire population. Not displayed in the VL.</td>
+				</tr>
+				<tr>
+				  <td>Oxygen consumption</td>
+				  <td>mg kg<sup>-1</sup> h<sup>-1</sup></td>
+				  <td>Oxygen consumption given in mg per kg of biomass hourly.</td>
+				</tr>
+				<tr>
+				  <td>Carbon dioxide production</td>
+				  <td>g h<sup>-1</sup></td>
+				  <td>Parameter passed to Water treatment model. Carbon dioxide production for entire population. Not displayed in the VL.</td>
+				</tr>
+				<tr>
+				  <td>Carbon dioxide production</td>
+				  <td>mg kg<sup>-1</sup> h<sup>-1</sup></td>
+				  <td>Carbon dioxide production given in mg per kg of biomass horly.</td>
+				</tr>
+			</tbody>
+		</table>
+
+	</div>
+
+{% endblock %}
