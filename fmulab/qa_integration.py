@@ -210,8 +210,6 @@ class QAIntegration:
             # Add the query to chat history
             self.chat_history[session_id].append({"role": "user", "content": query})
 
-            # Retrieve relevant chunks
-            # chunks = self.retrieve_chunks(query, document_names)
             # Retrieve relevant graph context
             context_parts = self.retrieve_graph_context(query, document_names)
 
@@ -225,8 +223,6 @@ class QAIntegration:
                     "session_id": session_id
                 }
 
-            # Format chunks into context
-            #context = self._format_context_from_chunks(chunks)
             # Format context for the prompt
             context = "\n\n---\n\n".join(context_parts)
 
@@ -242,13 +238,11 @@ class QAIntegration:
             self.chat_history[session_id].append({"role": "assistant", "content": response})
 
             # Extract sources for attribution
-            # sources = list(set([chunk.get("source", "Unknown") for chunk in chunks]))
             sources = []
             for part in context_parts:
                 source_match = re.search(r"Source: (.+?)\n", part)
                 if source_match and source_match.group(1) not in sources:
                     sources.append(source_match.group(1))
-
 
             return {
                 "message": response,
