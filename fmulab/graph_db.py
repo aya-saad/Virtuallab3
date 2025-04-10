@@ -132,73 +132,53 @@ class Neo4jConnection:
             logging.error(f"An error occurred retrieving documents: {str(e)}")
             return []
 
-    def get_graph_for_documents(self, document_names=None, chunk_limit=50):
+    def get_graph_for_documents(self, document_names=None, query_text="", chunk_limit=50):
         """
-        Get a graph representation for documents.
-        Modified to work without requiring specific document names.
+        Get a graph representation for documents with relevance to a query.
         """
         try:
-            if document_names:
-                logging.info(f"Starting graph query process for documents: {document_names}")
-                
-                # Convert document_names to the expected format
-                if isinstance(document_names, str):
-                    # Handle case where it might be a JSON string
-                    try:
-                        document_names = json.loads(document_names)
-                    except json.JSONDecodeError:
-                        document_names = [document_names]
-                
-                # Make sure document_names is a list of strings
-                document_names = list(map(str.strip, document_names))
-                
-                # Query with document filters
-                graph_query = """
-                MATCH (d:Document) 
-                WHERE d.fileName IN $document_names
-                WITH d
-                MATCH (c:Chunk)-[:PART_OF]->(d)
-                RETURN c.text AS chunk_text, d.fileName AS source
-                LIMIT $chunk_limit
-                """
-                
-                params = {
-                    "document_names": document_names,
-                    "chunk_limit": chunk_limit
-                }
-            else:
-                # Query all documents if no specific ones are provided
-                logging.info("Starting graph query process for all documents")
-                
-                graph_query = """
-                MATCH (d:Document)
-                WITH d
-                MATCH (c:Chunk)-[:PART_OF]->(d)
-                RETURN c.text AS chunk_text, d.fileName AS source
-                LIMIT $chunk_limit
-                """
-                
-                params = {
-                    "chunk_limit": chunk_limit
-                }
+            base_query = """
+            MATCH (c:Chunk)
+            WHERE c.text CONTAINS $query_text
+            WITH c, apoc.text.similarity(c.text, $query_text) AS relevance
+            ORDER BY relevance DESC
+            LIMIT $chunk_limit
+            MATCH (c)-[:PART_OF]->(d:Document)
+            OPTIONAL MATCH (c)-[:DISCUSSES]->(concept:Concept)
+            RETURN c.text AS chunk_text, 
+                   d.fileName AS source,
+                   collect(DISTINCT concept.name) AS concepts
+            """
 
-            # Execute the query
-            records, _, _ = self.execute_query(graph_query, params)
-            
-            # Process results
+            params = {
+                "query_text": query_text,  # Use the actual query text
+                "chunk_limit": chunk_limit
+            }
+
+            if document_names:
+                # If specific documents are requested, add that filter
+                base_query = base_query.replace(
+                    "MATCH (c:Chunk)",
+                    "MATCH (c:Chunk)-[:PART_OF]->(d:Document) WHERE d.fileName IN $document_names"
+                )
+                params["document_names"] = document_names
+
+            # Execute query
+            records, _, _ = self.execute_query(base_query, params)
+
+            # Process results to include concepts
             result = {
                 "chunks": [
                     {
                         "text": record.get("chunk_text", ""),
-                        "source": record.get("source", "Unknown")
+                        "source": record.get("source", "Unknown"),
+                        "concepts": record.get("concepts", [])
                     }
                     for record in records if record.get("chunk_text")
                 ]
             }
 
-            logging.info(f"Query process completed successfully, retrieved {len(result['chunks'])} chunks")
             return result
-
         except Exception as e:
             logging.error(f"Error retrieving graph: {str(e)}")
             return {"chunks": []}

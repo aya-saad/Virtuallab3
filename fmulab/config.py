@@ -250,4 +250,15 @@ CHAT_MODE_CONFIG_MAP= {
         "description": "Pure graph-based search",
         "top_k": 5,
     },
+    CHAT_SIMULATION_MODE: {
+        "retrieval_query": VECTOR_SEARCH_QUERY,
+        "top_k": 10,  # Increase for more comprehensive context
+        "index_name": "vector",
+        "keyword_index": "keyword",
+        "document_filter": False,
+        "node_label": "Chunk",
+        "embedding_node_property": "embedding",
+        "text_node_properties": ["text"],
+        "description": "Specialized mode for simulation queries"
+    },
 }

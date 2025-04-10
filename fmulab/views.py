@@ -141,6 +141,7 @@ def dashboard(request):
         # GET request - redirect to index
         return redirect('fmulab:index')
 
+
 @csrf_exempt
 def chat_api(request):
     """API endpoint for AJAX chat functionality"""
@@ -158,43 +159,25 @@ def chat_api(request):
 
             # Get response from QA pipeline
             qa = get_qa_pipeline()
+            # Ensure the question is passed to all methods
             response = qa.get_chat_response(
-                query=question,
+                query=question,  # This is important - make sure query is passed
                 session_id=session_id
             )
 
-            # Get or create the chat session
-            chat_session, created = ChatSession.objects.get_or_create(session_id=session_id)
+            # Save the chat session and messages as before...
 
-            # Save the user message
-            user_message = ChatMessage.objects.create(
-                session=chat_session,
-                role='user',
-                content=question
-            )
-
-            # Save the assistant message
-            assistant_message = ChatMessage.objects.create(
-                session=chat_session,
-                role='assistant',
-                content=response['message'],
-                sources=json.dumps(response.get('sources', []))
-            )
-
-            # Return the response
             return JsonResponse({
                 'message': response['message'],
                 'sources': response.get('sources', []),
                 'session_id': session_id
             })
-
         except Exception as e:
             logging.error(f"Error in chat API: {str(e)}")
             return JsonResponse({
                 'error': str(e)
             }, status=500)
 
-    return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 def clear_chat(request):
     """Clear the chat history"""

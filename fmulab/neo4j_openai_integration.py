@@ -16,31 +16,30 @@ logging.basicConfig(
 )
 
 # Constants for prompt engineering
+# In fmulab/neo4j_openai_integration.py, update the SYSTEM_PROMPT
 SYSTEM_PROMPT = """
 You are an FMU Simulation Assistant, specialized in aquaculture research and simulations. 
 Your knowledge comes from a graph database that contains information about fish growth models, 
 water treatment, hydrodynamic models, and more.
 
-When answering questions, use the graph context provided below which includes:
-- Content from relevant documents and chunks
-- Content from relevant documents and chunks
-- Concepts from the knowledge graph
-- Relationships between chunks, documents, and concepts
-
-### Guidelines:
-1. Provide detailed, accurate answers based on the provided graph context.
-2. Explain connections between concepts when relevant.
-3. If the context contains different perspectives or approaches, summarize them.
-4. If information on a specific topic is not found in the context, acknowledge this limitation.
+When answering questions:
+1. ONLY use the information provided in the graph context below.
+2. DO NOT make up or invent information not present in the context.
+3. If specific information is not available in the context, acknowledge this limitation.
+4. Be specific and detailed when the context provides detailed information.
+5. Provide step-by-step instructions when available in the context.
 
 ### Graph Context:
 {}
 
-If you need to reference specific concepts from the knowledge graph, they are listed below:
+### Key Concepts from the Knowledge Graph:
 {}
 
-Remember to use the concepts and their relationships to provide a comprehensive answer.
+Remember to base your answer EXCLUSIVELY on the above context.
 """
+
+
+
 
 class OpenAIClient:
     """Wrapper for OpenAI API"""
@@ -179,95 +178,91 @@ class QAIntegration:
             logging.error(f"Error retrieving concepts: {str(e)}")
             return []
 
+    # Then update the retrieve_graph_context method to better leverage the query
     def retrieve_graph_context(self, query, limit=10):
         """
         Retrieve relevant information from Neo4j based on the query
-        Updated to leverage the KAG structure with Concept nodes
+        Updated to leverage the KAG structure with Concept nodes and Community nodes
         """
         try:
-            # Query to find chunks and related concepts
-            context_query = """
-            // Find chunks that match the query text
+            # Try to get community summaries first - these provide high-level context
+            community_query = """
+            MATCH (c:__Community__)<-[:IN_COMMUNITY]-(:__Entity__)<-[:MENTIONS]-(chunk:Chunk)
+            WHERE chunk.text CONTAINS $query_text
+            WITH c, count(distinct chunk) AS relevance, c.summary AS summary
+            WHERE summary IS NOT NULL
+            RETURN summary
+            ORDER BY relevance DESC
+            LIMIT 3
+            """
+
+            community_params = {
+                "query_text": query
+            }
+
+            community_records, _, _ = self.neo4j.execute_query(community_query, community_params)
+            community_context = [record.get("summary", "") for record in community_records]
+
+            # Then get specific chunk matches
+            chunk_query = """
             MATCH (c:Chunk)
             WHERE toLower(c.text) CONTAINS toLower($query_text)
-            
-            // Calculate relevance score
             WITH c, apoc.text.similarity(toLower(c.text), toLower($query_text)) AS relevance
             ORDER BY relevance DESC
             LIMIT $limit
-            
-            // Get document information
-            OPTIONAL MATCH (c)-[:PART_OF]->(d:Document)
-            
-            // Get concepts related to chunks via DISCUSSES
+
+            MATCH (c)-[:PART_OF]->(d:Document)
             OPTIONAL MATCH (c)-[:DISCUSSES]->(concept:Concept)
-            
-            // Get related chunks via NEXT_CHUNK
-            OPTIONAL MATCH (c)-[:NEXT_CHUNK]-(related_chunk:Chunk)
-            
-            // Return context information
+
             RETURN c.text AS chunk_text,
                    d.fileName AS source,
-                   collect(DISTINCT {
-                       name: concept.name,
-                       description: concept.description,
-                       category: concept.category
-                   }) AS concepts,
-                   collect(DISTINCT related_chunk.text) AS related_chunks
+                   collect(DISTINCT concept.name) AS concepts
             """
-            
-            params = {
+
+            chunk_params = {
                 "query_text": query,
                 "limit": limit
             }
-            
-            records, _, _ = self.neo4j.execute_query(context_query, params)
-            
-            if not records:
-                logging.info(f"No relevant chunks found for query: {query}")
-                return "No relevant information found in the knowledge graph.", []
-            
-            # Format the results into context
+
+            chunk_records, _, _ = self.neo4j.execute_query(chunk_query, chunk_params)
+
+            # Format results into context
             context_parts = []
             all_concepts = []
-            
-            for record in records:
-                chunk_text = record.get("chunk_text", "")
-                source = record.get("source", "Unknown")
-                concepts = record.get("concepts", [])
-                related_chunks = record.get("related_chunks", [])
-                
-                # Extract valid concepts
-                valid_concepts = [c for c in concepts if c.get("name")]
-                all_concepts.extend(valid_concepts)
-                
-                if chunk_text:
-                    part = f"Source: {source}\n\nContent: {chunk_text}"
-                    
-                    # Add related concepts if any
-                    if valid_concepts:
-                        concept_names = [c.get("name", "") for c in valid_concepts]
-                        part += f"\n\nRelated concepts: {', '.join(concept_names)}"
-                    
-                    # Add related chunks if any (truncated if too long)
-                    if related_chunks:
-                        related_text = "\n".join([chunk[:200] + "..." if len(chunk) > 200 else chunk 
-                                                 for chunk in related_chunks[:3]])
-                        part += f"\n\nRelated content: {related_text}"
-                    
-                    context_parts.append(part)
-            
-            # Deduplicate concepts by name
-            unique_concepts = []
-            seen_names = set()
-            for concept in all_concepts:
-                name = concept.get("name", "")
-                if name and name not in seen_names:
-                    seen_names.add(name)
-                    unique_concepts.append(concept)
-            
+
+            # Add community summaries first
+            if community_context:
+                context_parts.append("# Community Knowledge\n\n" + "\n\n".join(community_context))
+
+            # Add chunk context
+            if chunk_records:
+                context_parts.append("# Specific Document Chunks\n")
+
+                for record in chunk_records:
+                    chunk_text = record.get("chunk_text", "")
+                    source = record.get("source", "Unknown")
+                    concepts = record.get("concepts", [])
+
+                    if chunk_text:
+                        part = f"Source: {source}\n\nContent: {chunk_text}"
+
+                        # Add related concepts if any
+                        if concepts:
+                            concept_names = [c for c in concepts if c]
+                            if concept_names:
+                                part += f"\n\nRelated concepts: {', '.join(concept_names)}"
+                                all_concepts.extend(concept_names)
+
+                        context_parts.append(part)
+
+            # If we have no context at all, return a message
+            if not context_parts:
+                return "No relevant information found in the knowledge graph.", []
+
+            # Deduplicate concepts
+            unique_concepts = list(set(all_concepts))
+
             return "\n\n---\n\n".join(context_parts), unique_concepts
-            
         except Exception as e:
             logging.error(f"Error retrieving graph context: {str(e)}")
             return f"Error accessing knowledge graph: {str(e)}", []
@@ -302,62 +297,63 @@ class QAIntegration:
             # Create or get session ID
             if not session_id:
                 session_id = f"session_{datetime.now().timestamp()}"
-            
+
             # Initialize chat history for new sessions
             if session_id not in self.chat_history:
                 self.chat_history[session_id] = []
-            
+
             # Add the user's query to chat history
             self.chat_history[session_id].append({"role": "user", "content": query})
-            
-            # Retrieve context and concepts from Neo4j
+
+            # Retrieve context and concepts from Neo4j - this now needs to include the query
+            self.neo4j.query_text = query  # Modify your Neo4j class to store this
             context, concepts = self.retrieve_graph_context(query)
-            
+
             # If no concepts were found via chunks, try direct concept retrieval
             if not concepts:
                 concepts = self.retrieve_relevant_concepts(query)
-            
+
             # Format concepts for the prompt
             formatted_concepts = self.format_concepts_for_prompt(concepts)
-            
+
             # Extract sources for attribution
             sources = []
             source_matches = re.findall(r"Source: (.+?)\n", context)
             if source_matches:
                 sources = list(set(source_matches))
-            
+
             # Prepare messages for OpenAI, including system prompt with context and concepts
             messages = [
                 {"role": "system", "content": SYSTEM_PROMPT.format(context, formatted_concepts)},
                 {"role": "user", "content": query}
             ]
-            
+
             # Generate response with OpenAI
             response = self.openai.generate_response(messages)
-            
+
             # Add the assistant's response to chat history
             self.chat_history[session_id].append({"role": "assistant", "content": response})
-            
+
             return {
                 "message": response,
                 "sources": sources,
                 "session_id": session_id
             }
-            
+
         except Exception as e:
             logging.error(f"Error in QA integration: {str(e)}", exc_info=True)
             error_message = f"I'm sorry, but I encountered an error processing your question: {str(e)}"
-            
+
             # Add error response to chat history
             if session_id in self.chat_history:
                 self.chat_history[session_id].append({"role": "assistant", "content": error_message})
-            
+
             return {
                 "message": error_message,
                 "sources": [],
                 "session_id": session_id
             }
-    
+
     def close(self):
         """Close the Neo4j connection"""
         if hasattr(self, 'neo4j') and self.neo4j:

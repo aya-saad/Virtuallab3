@@ -17,24 +17,24 @@ logging.basicConfig(
 
 # Constants for prompt engineering
 SYSTEM_PROMPT = """
-You are an FMU Simulation Assistant, specialized in aquaculture research and simulations. Your knowledge comes from a graph database that contains information about fish growth models, water treatment, hydrodynamic models, and more.
+You are an FMU Simulation Assistant, specialized in aquaculture research and simulations with the Kopl tool. 
+Your knowledge comes from a graph database that contains information about fish growth models, 
+water treatment, hydrodynamic models, and the Kopl tool for simulations.
 
-When answering questions, use the graph context provided below which includes:
-- Content from relevant documents
-- Entities (concepts, terms, components) from the knowledge graph
-- Relationships between these entities
-
-### Guidelines:
-1. Provide detailed, accurate answers based solely on the provided graph context.
-2. Explain connections between concepts when relevant.
-3. If the context contains different perspectives or approaches, summarize them.
-4. Be specific about what files or components you're referring to.
-5. If the graph context doesn't contain enough information, acknowledge this limitation.
+When answering questions about creating simulations with Kopl:
+1. ONLY provide specific, step-by-step instructions based on the information in the context.
+2. If there are detailed instructions about the Kopl tool in the context, prioritize this information.
+3. Focus on practical steps and actions rather than general concepts.
+4. Include any specific parameters, file formats, or settings mentioned in the context.
+5. DO NOT make up information not present in the context.
 
 ### Graph Context:
 {}
 
-Remember: You have access to a rich knowledge graph about FMU simulations and aquaculture research. Use this specialized knowledge to provide helpful, accurate responses.
+### Key Concepts:
+{}
+
+Remember to base your answers EXCLUSIVELY on the information in the context above.
 """
 
 
@@ -123,6 +123,61 @@ class QAIntegration:
         except Exception as e:
             logging.error(f"Error retrieving chunks: {str(e)}")
             return []
+        
+    def retrieve_relevant_concepts(self, query, limit=10):
+        """
+        Retrieve relevant concepts from the knowledge graph based on the query
+        """
+        try:
+            # Query to find relevant concepts
+            concept_query = """
+                // Find concepts that might be relevant to the query 
+                MATCH (c:Concept) 
+                WHERE toLower(c.name) CONTAINS toLower($query_text) 
+                OR toLower(c.description) CONTAINS toLower($query_text) 
+                // Calculate relevance score 
+                WITH c, 
+                CASE 
+                    WHEN toLower(c.name) CONTAINS toLower($query_text) THEN 3 
+                    WHEN toLower(c.description) CONTAINS toLower($query_text) THEN 2
+                    ELSE 1 
+                END AS relevance 
+                ORDER BY relevance DESC 
+                LIMIT $limit 
+                
+                // Return concept information 
+                RETURN c.name AS name, 
+                c.description AS description, 
+                c.category AS category 
+            """
+        
+            params = {
+                "query_text": query,
+                "limit": limit
+            }
+        
+            records, _, _ = self.neo4j.execute_query(concept_query, params)
+        
+            if not records:
+                logging.info(f"No relevant concepts found for query: {query}")
+                return []
+        
+            # Format the concepts into a structured list
+            concepts = []
+            for record in records:
+                concept = {
+                    "name": record.get("name", ""),
+                    "description": record.get("description", ""),
+                    "category": record.get("category", "")
+                }
+                if concept["name"]:
+                    concepts.append(concept)
+        
+            return concepts
+        
+        except Exception as e:
+            logging.error(f"Error retrieving concepts: {str(e)}")
+            return []
 
     def retrieve_graph_context(self, query, document_names=None, limit=10):
         """Retrieve relevant graph context from Neo4j based on query"""
@@ -172,6 +227,11 @@ class QAIntegration:
 
             # Process the results into a context format
             context_parts = []
+            logging.info(f"Retrieving graph context for query: '{query}'")
+            logging.info(f"Using document filters: {document_names}")
+            # Your existing query logic here...
+            # After executing the query, log the results:
+            logging.info(f"Retrieved {len(records)} chunks")
 
             for record in records:
                 chunk_text = record["chunk_text"]
@@ -212,9 +272,20 @@ class QAIntegration:
 
             # Retrieve relevant graph context
             context_parts = self.retrieve_graph_context(query, document_names)
+        
+            # If not enough context, explicitly look for relevant concepts
+            concepts = []
+            if len(context_parts) < 2:  # Arbitrary threshold
+                concepts = self.retrieve_relevant_concepts(query)
+            
+            # Format concepts for inclusion in the prompt
+            concepts_text = ""
+            if concepts:
+                concepts_text = "\n\nRelevant Concepts:\n" + "\n".join([
+                    f"- {c['name']}: {c['description']}" for c in concepts
+                ])
 
-            #if not chunks:
-            if not context_parts:
+            if not context_parts and not concepts:
                 no_info_response = "I couldn't find any relevant information to answer your question."
                 self.chat_history[session_id].append({"role": "assistant", "content": no_info_response})
                 return {
@@ -225,6 +296,7 @@ class QAIntegration:
 
             # Format context for the prompt
             context = "\n\n---\n\n".join(context_parts)
+            context += concepts_text
 
             # Generate the prompt with context
             prompt = SYSTEM_PROMPT.format(context) + f"\nQuestion: {query}"
