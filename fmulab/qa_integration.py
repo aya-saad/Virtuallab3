@@ -8,6 +8,7 @@ import os
 from datetime import datetime
 from .graph_db import Neo4jConnection
 from .llm_integration import get_llm_provider
+from .neo4j_openai_integration import *
 
 # Set up logging
 logging.basicConfig(
@@ -15,39 +16,16 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
-# Constants for prompt engineering
-SYSTEM_PROMPT = """
-You are an FMU Simulation Assistant, specialized in aquaculture research and simulations with the Kopl tool. 
-Your knowledge comes from a graph database that contains information about fish growth models, 
-water treatment, hydrodynamic models, and the Kopl tool for simulations.
-
-When answering questions about creating simulations with Kopl:
-1. ONLY provide specific, step-by-step instructions based on the information in the context.
-2. If there are detailed instructions about the Kopl tool in the context, prioritize this information.
-3. Focus on practical steps and actions rather than general concepts.
-4. Include any specific parameters, file formats, or settings mentioned in the context.
-5. DO NOT make up information not present in the context.
-
-### Graph Context:
-{}
-
-### Key Concepts:
-{}
-
-Remember to base your answers EXCLUSIVELY on the information in the context above.
-"""
-
-
-
 class QAIntegration:
-    """QA Pipeline integrating Neo4j and LLMs"""
+    """Enhanced QA Pipeline integrating Neo4j and OpenAI"""
 
-    def __init__(self, neo4j_connection=None, llm_provider=None):
+    def __init__(self, neo4j_connection=None, openai_api_key=None, openai_model="gpt-3.5-turbo"):
         """Initialize the QA pipeline"""
         from django.conf import settings
 
+        # Initialize Neo4j connection
         if neo4j_connection is None:
-            # Explicitly pass the settings from Django
+            from .graph_db import Neo4jConnection
             self.neo4j = Neo4jConnection(
                 uri=settings.NEO4J_URI,
                 username=settings.NEO4J_USERNAME,
@@ -57,285 +35,188 @@ class QAIntegration:
         else:
             self.neo4j = neo4j_connection
 
+        # Connect to Neo4j if not already connected
         if not self.neo4j.driver:
             self.neo4j.connect()
 
-        self.llm = llm_provider or get_llm_provider()
-        self.chat_history = {}  # Session ID -> list of messages
+        # Initialize OpenAI client
+        self.openai = OpenAIClient(api_key=openai_api_key, model=openai_model)
+
+        # Initialize chat history storage
+        self.chat_history = {}
 
     def get_documents(self):
         """Get list of available documents"""
         return self.neo4j.get_completed_documents()
 
-    def _format_context_from_chunks(self, chunks):
-        """Format chunks into context for LLM prompt"""
-        formatted_chunks = []
-
-        for i, chunk in enumerate(chunks):
-            formatted_chunk = f"Document {i + 1}:\n{chunk.get('text', '')}\n"
-            formatted_chunks.append(formatted_chunk)
-
-        return "\n\n".join(formatted_chunks)
-
-    def retrieve_chunks(self, query, document_names=None, limit=5):
-        """Retrieve relevant chunks from Neo4j based on query"""
+    def process_map_reduce_chain(self, query):
+        """
+        Process a query through the map-reduce chain
+        Works with Neo4j Aura Free (no APOC needed)
+        """
         try:
-            # Basic semantic search query - in production, use vector similarity
-            search_query = """
-            MATCH (d:Document)
-            WHERE d.fileName IN $document_names
-            MATCH (d)<-[:PART_OF]-(c:Chunk)
-            WHERE c.text CONTAINS $query_text
-            RETURN c
-            LIMIT $limit
+            # Step 1: Get relevant chunks from Neo4j using basic text matching
+            # Breaking the query into terms for better matching
+            query_terms = [term.lower() for term in query.split() if len(term) > 3]
+
+            # Build a more flexible query for Neo4j Aura
+            where_clauses = []
+            for term in query_terms:
+                # Sanitize the term for Cypher query
+                sanitized_term = term.replace("'", "''")
+                where_clauses.append(f"toLower(c.text) CONTAINS '{sanitized_term}'")
+
+            # If no terms to search for, use the whole query
+            if not where_clauses:
+                sanitized_query = query.replace("'", "''")
+                where_clause = f"toLower(c.text) CONTAINS toLower('{sanitized_query}')"
+            else:
+                where_clause = " OR ".join(where_clauses)
+
+            chunk_query = f"""
+            MATCH (c:Chunk)
+            WHERE {where_clause}
+            RETURN c.id AS id, c.text AS text, 
+                   c.position AS position
+            ORDER BY position
+            LIMIT 10
             """
 
-            if not document_names:
-                # If no documents specified, search all documents
-                search_query = """
-                MATCH (d:Document)<-[:PART_OF]-(c:Chunk)
-                WHERE toLower(c.text) CONTAINS toLower($query_text)
-                RETURN c
-                LIMIT $limit
+            records, _, _ = self.neo4j.driver.execute_query(chunk_query)
+
+            if not records:
+                return "I couldn't find relevant information to answer your question."
+
+            # Step 2: Get document info and concepts for chunks
+            chunks_with_metadata = []
+            for record in records:
+                chunk_id = record.get("id", "")
+
+                # Get document info in one query
+                doc_query = """
+                MATCH (c:Chunk {id: $chunk_id})-[:PART_OF]->(d:Document)
+                RETURN d.fileName AS source
                 """
 
-            params = {
-                "query_text": query,
-                "limit": limit
-            }
+                doc_records, _, _ = self.neo4j.driver.execute_query(doc_query, {"chunk_id": chunk_id})
 
-            if document_names:
-                params["document_names"] = document_names
+                # Get concepts in another query
+                concept_query = """
+                MATCH (c:Chunk {id: $chunk_id})-[:DISCUSSES]->(concept:Concept)
+                RETURN collect(concept.name) AS concepts
+                """
 
-            records, _ = self.neo4j.execute_query(search_query, params)
+                concept_records, _, _ = self.neo4j.driver.execute_query(concept_query, {"chunk_id": chunk_id})
 
-            chunks = []
-            for record in records:
-                chunk = record["c"]
-                chunks.append({
-                    "id": chunk.get("id", ""),
-                    "text": chunk.get("text", ""),
-                    "source": record.get("fileName", "Unknown")
+                source = "Unknown"
+                concepts = []
+
+                if doc_records:
+                    source = doc_records[0].get("source", "Unknown")
+
+                if concept_records:
+                    concepts = concept_records[0].get("concepts", [])
+
+                # Add all data to chunk
+                chunks_with_metadata.append({
+                    "id": chunk_id,
+                    "text": record.get("text", ""),
+                    "position": record.get("position", 0),
+                    "source": source,
+                    "concepts": concepts
                 })
 
-            return chunks
-
-        except Exception as e:
-            logging.error(f"Error retrieving chunks: {str(e)}")
-            return []
-        
-    def retrieve_relevant_concepts(self, query, limit=10):
-        """
-        Retrieve relevant concepts from the knowledge graph based on the query
-        """
-        try:
-            # Query to find relevant concepts
-            concept_query = """
-                // Find concepts that might be relevant to the query 
-                MATCH (c:Concept) 
-                WHERE toLower(c.name) CONTAINS toLower($query_text) 
-                OR toLower(c.description) CONTAINS toLower($query_text) 
-                // Calculate relevance score 
-                WITH c, 
-                CASE 
-                    WHEN toLower(c.name) CONTAINS toLower($query_text) THEN 3 
-                    WHEN toLower(c.description) CONTAINS toLower($query_text) THEN 2
-                    ELSE 1 
-                END AS relevance 
-                ORDER BY relevance DESC 
-                LIMIT $limit 
+            # Step 3: Process each chunk through map step
+            mapped_results = []
+            for chunk in chunks_with_metadata:
+                # Format the chunk data for the map step
+                chunk_data = f"""
+                Chunk ID: {chunk['id']}
+                Source: {chunk['source']}
+                Position: {chunk['position']}
+                Concepts: {', '.join(chunk['concepts']) if chunk['concepts'] else 'None'}
                 
-                // Return concept information 
-                RETURN c.name AS name, 
-                c.description AS description, 
-                c.category AS category 
-            """
-        
-            params = {
-                "query_text": query,
-                "limit": limit
-            }
-        
-            records, _, _ = self.neo4j.execute_query(concept_query, params)
-        
-            if not records:
-                logging.info(f"No relevant concepts found for query: {query}")
-                return []
-        
-            # Format the concepts into a structured list
-            concepts = []
-            for record in records:
-                concept = {
-                    "name": record.get("name", ""),
-                    "description": record.get("description", ""),
-                    "category": record.get("category", "")
-                }
-                if concept["name"]:
-                    concepts.append(concept)
-        
-            return concepts
-        
-        except Exception as e:
-            logging.error(f"Error retrieving concepts: {str(e)}")
-            return []
+                Content:
+                {chunk['text']}
+                """
 
-    def retrieve_graph_context(self, query, document_names=None, limit=10):
-        """Retrieve relevant graph context from Neo4j based on query"""
-        try:
-            # Use a more sophisticated query that leverages the graph structure
-            # This query finds relevant chunks, then expands to include connected entities and their relationships
-            graph_query = """
-            // First find relevant chunks using vector similarity or text matching
-            MATCH (c:Chunk)
-            WHERE c.text CONTAINS $query_text OR EXISTS(c.embedding)
-            WITH c, CASE 
-                WHEN EXISTS(c.embedding) THEN 1.0 
-                ELSE apoc.text.similarity(c.text, $query_text) 
-            END AS relevance
-            ORDER BY relevance DESC
-            LIMIT $limit
+                # Process this chunk using the OpenAI client
+                map_result = self.openai.map_chunk(chunk_data, query)
+                mapped_results.append(map_result)
 
-            // Get the documents these chunks belong to
-            MATCH (c)-[:PART_OF]->(d:Document)
+            # Step 4: Combine all mapped results in reduce step
+            final_response = self.openai.reduce_results(mapped_results, query)
 
-            // Expand to related entities
-            OPTIONAL MATCH path = (c)-[:HAS_ENTITY]->(e)
-
-            // Also get relationships between entities
-            OPTIONAL MATCH entity_rels = (e)-[r]-(other:__Entity__)
-
-            // Collect all the results
-            RETURN c.text AS chunk_text, 
-                   d.fileName AS source,
-                   collect(DISTINCT e.id) AS entities,
-                   collect(DISTINCT type(r) + ': ' + other.id) AS relationships
-            """
-
-            params = {
-                "query_text": query,
-                "limit": limit
-            }
-
-            if document_names:
-                graph_query = graph_query.replace(
-                    "MATCH (c:Chunk)",
-                    "MATCH (c:Chunk)-[:PART_OF]->(d:Document) WHERE d.fileName IN $document_names"
-                )
-                params["document_names"] = document_names
-
-            records, _, _ = self.neo4j.execute_query(graph_query, params)
-
-            # Process the results into a context format
-            context_parts = []
-            logging.info(f"Retrieving graph context for query: '{query}'")
-            logging.info(f"Using document filters: {document_names}")
-            # Your existing query logic here...
-            # After executing the query, log the results:
-            logging.info(f"Retrieved {len(records)} chunks")
-
-            for record in records:
-                chunk_text = record["chunk_text"]
-                source = record["source"]
-                entities = record["entities"]
-                relationships = record["relationships"]
-
-                context_part = f"Source: {source}\n\nContent: {chunk_text}\n"
-
-                if entities:
-                    context_part += "\nEntities: " + ", ".join(entities)
-
-                if relationships:
-                    filtered_rels = [r for r in relationships if r is not None]
-                    if filtered_rels:
-                        context_part += "\nRelationships: " + ", ".join(filtered_rels)
-
-                context_parts.append(context_part)
-
-            return context_parts
+            return final_response
 
         except Exception as e:
-            logging.error(f"Error retrieving graph context: {str(e)}")
-            return []
+            logging.error(f"Error in map-reduce chain: {e}")
+            return f"An error occurred while processing your question: {str(e)}"
 
-    def get_chat_response(self, query, session_id=None, document_names=None):
-        """Get a response to the user query"""
+    def get_chat_response(self, query, session_id=None, document_names=None, chat_mode=None):
+        """
+        Get a response to the user query using the Neo4j knowledge graph and OpenAI
+        Using Map-Reduce approach for better results
+        """
         try:
-            # Initialize or get chat history
+            # Create or get session ID
             if not session_id:
                 session_id = f"session_{datetime.now().timestamp()}"
 
+            # Initialize chat history for new sessions
             if session_id not in self.chat_history:
                 self.chat_history[session_id] = []
 
-            # Add the query to chat history
+            # Add the user's query to chat history
             self.chat_history[session_id].append({"role": "user", "content": query})
 
-            # Retrieve relevant graph context
-            context_parts = self.retrieve_graph_context(query, document_names)
-        
-            # If not enough context, explicitly look for relevant concepts
-            concepts = []
-            if len(context_parts) < 2:  # Arbitrary threshold
-                concepts = self.retrieve_relevant_concepts(query)
-            
-            # Format concepts for inclusion in the prompt
-            concepts_text = ""
-            if concepts:
-                concepts_text = "\n\nRelevant Concepts:\n" + "\n".join([
-                    f"- {c['name']}: {c['description']}" for c in concepts
-                ])
-
-            if not context_parts and not concepts:
-                no_info_response = "I couldn't find any relevant information to answer your question."
-                self.chat_history[session_id].append({"role": "assistant", "content": no_info_response})
-                return {
-                    "message": no_info_response,
-                    "sources": [],
-                    "session_id": session_id
-                }
-
-            # Format context for the prompt
-            context = "\n\n---\n\n".join(context_parts)
-            context += concepts_text
-
-            # Generate the prompt with context
-            prompt = SYSTEM_PROMPT.format(context) + f"\nQuestion: {query}"
-
-            # Get response from LLM
-            logging.info(f"Sending prompt to LLM: {prompt[:200]}...")  # Log first 200 chars
-            response = self.llm.generate(prompt)
-            logging.info(f"Received response from LLM: {response[:200]}...")  # Log first 200 chars
-
-            # Add response to chat history
-            self.chat_history[session_id].append({"role": "assistant", "content": response})
+            # Process the query through map-reduce chain
+            response_content = self.process_map_reduce_chain(query)
 
             # Extract sources for attribution
             sources = []
-            for part in context_parts:
-                source_match = re.search(r"Source: (.+?)\n", part)
-                if source_match and source_match.group(1) not in sources:
-                    sources.append(source_match.group(1))
+            # Look for sources mentioned in the format "Source: filename"
+            source_matches = re.findall(r"Source: ([^\n]+)", response_content)
+            if source_matches:
+                sources = list(set(source_matches))
+
+            # Also try to find Data: Chunk references
+            chunk_matches = re.findall(r"\[Data: Chunk \(([^\)]+)\)\]", response_content)
+            if chunk_matches:
+                for chunk_id in chunk_matches:
+                    # Try to find the source for this chunk
+                    try:
+                        doc_query = """
+                        MATCH (c:Chunk {id: $chunk_id})-[:PART_OF]->(d:Document)
+                        RETURN d.fileName AS source
+                        """
+
+                        doc_records, _, _ = self.neo4j.driver.execute_query(doc_query, {"chunk_id": chunk_id})
+
+                        if doc_records and doc_records[0].get("source"):
+                            sources.append(doc_records[0].get("source"))
+                    except Exception as source_error:
+                        logging.error(f"Error finding source for chunk {chunk_id}: {source_error}")
+
+            # Add the assistant's response to chat history
+            self.chat_history[session_id].append({"role": "assistant", "content": response_content})
 
             return {
-                "message": response,
-                "sources": sources,
+                "message": response_content,
+                "sources": list(set(sources)),  # Deduplicate sources
                 "session_id": session_id
             }
 
         except Exception as e:
-            logging.error(f"Error in QA pipeline: {str(e)}", exc_info=True)
-            error_response = f"I'm sorry, but I encountered an error while processing your question: {str(e)}"
+            logging.error(f"Error in QA integration: {str(e)}", exc_info=True)
+            error_message = f"I'm sorry, but I encountered an error processing your question: {str(e)}"
 
+            # Add error response to chat history
             if session_id in self.chat_history:
-                self.chat_history[session_id].append({"role": "assistant", "content": error_response})
+                self.chat_history[session_id].append({"role": "assistant", "content": error_message})
 
             return {
-                "message": error_response,
+                "message": error_message,
                 "sources": [],
                 "session_id": session_id
             }
-
-    def close(self):
-        """Close connections"""
-        if self.neo4j:
-            self.neo4j.close()

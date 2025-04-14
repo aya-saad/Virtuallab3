@@ -13,7 +13,8 @@ from django.contrib import messages
 from models.models import Experiment
 from .models import FMUForm, ChatSession, ChatMessage
 from .graph_db import Neo4jConnection
-from .neo4j_openai_integration import QAIntegration
+# from .neo4j_openai_integration import OpenAIClient
+from .qa_integration import QAIntegration
 
 # Initialize the QA pipeline
 qa_pipeline = None
@@ -159,25 +160,45 @@ def chat_api(request):
 
             # Get response from QA pipeline
             qa = get_qa_pipeline()
-            # Ensure the question is passed to all methods
+
+            # Use the Map-Reduce approach
             response = qa.get_chat_response(
-                query=question,  # This is important - make sure query is passed
+                query=question,
                 session_id=session_id
             )
 
-            # Save the chat session and messages as before...
+            # Get or create the chat session
+            chat_session, created = ChatSession.objects.get_or_create(session_id=session_id)
 
+            # Save the user message
+            user_message = ChatMessage.objects.create(
+                session=chat_session,
+                role='user',
+                content=question
+            )
+
+            # Save the assistant message
+            assistant_message = ChatMessage.objects.create(
+                session=chat_session,
+                role='assistant',
+                content=response['message'],
+                sources=json.dumps(response.get('sources', []))
+            )
+
+            # Return the response
             return JsonResponse({
                 'message': response['message'],
                 'sources': response.get('sources', []),
                 'session_id': session_id
             })
+
         except Exception as e:
             logging.error(f"Error in chat API: {str(e)}")
             return JsonResponse({
                 'error': str(e)
             }, status=500)
 
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 def clear_chat(request):
     """Clear the chat history"""
